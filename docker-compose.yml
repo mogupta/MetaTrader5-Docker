@@ -1,0 +1,23 @@
+version: '3'
+
+services:
+  mt5:
+    # image: gmag11/metatrader5_vnc:2.3
+    image: mt5:latest
+    container_name: mt5
+
+    volumes:
+      # - /root/mt5_config:/config
+       - mt5_config:/config  # required otherwise doesn't work, permission fix required with /root/mt5-config
+
+    ports:
+      - "3000:3000"
+      - "8001:8001"
+
+    environment:
+      - CUSTOM_USER=admin
+      - PASSWORD=pandit6609
+      - MT5_CMD_OPTIONS=/config:C:\\customized_for_tester_etc.ini
+
+volumes:
+  mt5_config:
