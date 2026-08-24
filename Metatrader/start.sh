@@ -9,6 +9,7 @@ metatrader_version="5.0.36"
 mt5server_port="8001"
 MT5_CMD_OPTIONS="${MT5_CMD_OPTIONS:-}"
 mono_url="https://dl.winehq.org/wine/wine-mono/10.3.0/wine-mono-10.3.0-x86.msi"
+#python_url="https://www.python.org/ftp/python/3.11.9/python-3.11.9.exe"
 python_url="https://www.python.org/ftp/python/3.9.13/python-3.9.13.exe"
 mt5setup_url="https://download.mql5.com/cdn/web/metaquotes.software.corp/mt5/mt5setup.exe"
 
@@ -99,7 +100,7 @@ fi
 # Install mt5linux library in Windows if not installed
 show_message "[6/7] Checking and installing mt5linux library in Windows if necessary"
 if ! is_wine_python_package_installed "mt5linux"; then
-    $wine_executable python -m pip install --no-cache-dir "mt5linux>=0.1.9"
+    $wine_executable python -m pip install --no-cache-dir "mt5linux==1.0.11"
 fi
 
 # Install python-dateutil if needed (datetime is built-in, but dateutil adds features)
@@ -111,8 +112,14 @@ fi
 # Install mt5linux library in Linux if not installed
 show_message "[6/7] Checking and installing mt5linux library in Linux if necessary"
 if ! is_python_package_installed "mt5linux"; then
-    pip install --break-system-packages --no-cache-dir --no-deps mt5linux && \
-    pip install --break-system-packages --no-cache-dir rpyc plumbum numpy
+	python3 -m pip install --user --break-system-packages --no-cache-dir \
+	    "mt5linux==1.0.11" \
+	    "plumbum==1.7.0" \
+	    "pyparsing==3.3.2" \
+	    "rpyc>=6.0.0,<7" \
+	    "python-dotenv" \
+	    "numpy" \
+	    "typing-extensions"
 fi
 
 # Install pyxdg library in Linux if not installed
@@ -123,7 +130,7 @@ fi
 
 # Start the MT5 server on Linux
 show_message "[7/7] Starting the mt5linux server..."
-python3 -m mt5linux --host 0.0.0.0 -p $mt5server_port -w $wine_executable python.exe &
+python3 -m mt5linux --host 0.0.0.0 -p $mt5server_port &
 
 # Give the server some time to start
 sleep 5
