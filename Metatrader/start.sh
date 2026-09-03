@@ -141,3 +141,36 @@ if ss -tuln | grep ":$mt5server_port" > /dev/null; then
 else
     show_message "[7/7] Failed to start the mt5linux server on port $mt5server_port."
 fi
+
+echo "Waiting for MT5/Wine initialization..."
+
+sleep 20
+
+for round in 1 2 3; do
+
+    echo "======================================"
+    echo "MetaTester startup round $round"
+    echo "======================================"
+
+    for i in $(seq 1 66); do
+        # Skip already running agents
+        if wine cmd /c "sc query MetaTester-$i" | grep -q "RUNNING"; then
+            echo "MetaTester-$i already running"
+        else
+            echo "Starting MetaTester-$i"
+            wine cmd /c "sc start MetaTester-$i"
+            sleep 2
+        fi
+    done
+
+    echo "Waiting 15 seconds before next pass..."
+    sleep 15
+
+done
+
+echo "======================================"
+echo "MetaTester agent startup finished"
+echo "======================================"
+echo -n "Running agents: "
+
+ps aux | grep 'metatester64.exe /run' | grep -v grep | wc -l
