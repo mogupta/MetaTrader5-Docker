@@ -53,6 +53,9 @@ else
     show_message "[1/7] Mono is already installed."
 fi
 
+# MT5 anti-debug check needs Windows 11 mode + wine-staging (WineHQ bug 58043)
+$wine_executable reg add "HKEY_CURRENT_USER\\Software\\Wine" /v Version /t REG_SZ /d "win11" /f
+
 # Check if MetaTrader 5 is already installed
 if [ -e "$mt5file" ]; then
     show_message "[2/7] File $mt5file already exists."
@@ -60,7 +63,7 @@ else
     show_message "[2/7] File $mt5file is not installed. Installing..."
 
     # Set Windows 10 mode in Wine and download and install MT5
-    $wine_executable reg add "HKEY_CURRENT_USER\\Software\\Wine" /v Version /t REG_SZ /d "win10" /f
+    # $wine_executable reg add "HKEY_CURRENT_USER\\Software\\Wine" /v Version /t REG_SZ /d "win10" /f
     show_message "[3/7] Downloading MT5 installer..."
     curl -o /config/.wine/drive_c/mt5setup.exe $mt5setup_url
     show_message "[3/7] Installing MetaTrader 5..."
@@ -78,12 +81,15 @@ else
 fi
 
 
-# Install Python in Wine if not present
-if ! $wine_executable python --version 2>/dev/null; then
+# Remove old 32-bit Python (no pip, wrong arch for terminal64)
+rm -rf "/config/.wine/drive_c/Program Files (x86)/Python39-32"
+
+# Install 64-bit Python in Wine if missing, not 64-bit, or pip is broken
+if ! $wine_executable python -c "import struct,pip,sys; sys.exit(struct.calcsize('P')!=8)" 2>/dev/null; then
     show_message "[5/7] Installing Python in Wine..."
     curl -L $python_url -o /tmp/python-installer.exe
-    $wine_executable /tmp/python-installer.exe /quiet InstallAllUsers=1 PrependPath=1
-    rm /tmp/python-installer.exe
+    $wine_executable /tmp/python-installer.exe /quiet InstallAllUsers=1 PrependPath=1 Include_pip=1
+    rm -f /tmp/python-installer.exe
     show_message "[5/7] Python installed in Wine."
 else
     show_message "[5/7] Python is already installed in Wine."
@@ -91,12 +97,17 @@ fi
 
 # Upgrade pip and install required packages
 show_message "[6/7] Installing Python libraries"
+
+# Upgrade pip and install required packages
+show_message "[6/7] Installing Python libraries"
 $wine_executable python -m pip install --upgrade --no-cache-dir pip
 # Install MetaTrader5 library in Windows if not installed
 show_message "[6/7] Installing MetaTrader5 library in Windows"
 if ! is_wine_python_package_installed "MetaTrader5==$metatrader_version"; then
-    $wine_executable python -m pip install --no-cache-dir MetaTrader5==$metatrader_version
+    $wine_executable python -m pip install --no-cache-dir MetaTrader5==$metatrader_version "numpy<2"
 fi
+$wine_executable python -m pip install --no-cache-dir "numpy<2"
+
 # Install mt5linux library in Windows if not installed
 show_message "[6/7] Checking and installing mt5linux library in Windows if necessary"
 if ! is_wine_python_package_installed "mt5linux"; then
@@ -130,10 +141,11 @@ fi
 
 # Start the MT5 server on Linux
 show_message "[7/7] Starting the mt5linux server..."
-python3 -m mt5linux --host 0.0.0.0 -p $mt5server_port &
+#python3 -m mt5linux --host 0.0.0.0 -p $mt5server_port &
+$wine_executable python -m mt5linux --host 0.0.0.0 -p $mt5server_port &
 
 # Give the server some time to start
-sleep 5
+sleep 15
 
 # Check if the server is running
 if ss -tuln | grep ":$mt5server_port" > /dev/null; then
@@ -143,34 +155,5 @@ else
 fi
 
 echo "Waiting for MT5/Wine initialization..."
-
-sleep 20
-
-for round in 1 2 3; do
-
-    echo "======================================"
-    echo "MetaTester startup round $round"
-    echo "======================================"
-
-    for i in $(seq 1 66); do
-        # Skip already running agents
-        if wine cmd /c "sc query MetaTester-$i" | grep -q "RUNNING"; then
-            echo "MetaTester-$i already running"
-        else
-            echo "Starting MetaTester-$i"
-            wine cmd /c "sc start MetaTester-$i"
-            sleep 2
-        fi
-    done
-
-    echo "Waiting 15 seconds before next pass..."
-    sleep 15
-
-done
-
-echo "======================================"
-echo "MetaTester agent startup finished"
-echo "======================================"
-echo -n "Running agents: "
 
 ps aux | grep 'metatester64.exe /run' | grep -v grep | wc -l

@@ -27,10 +27,7 @@ RUN apt-get update \
     && dpkg --add-architecture i386 \
     && apt-get update \
     && apt-get install --install-recommends -y \
-    	winehq-stable=10.0.0.0~bookworm-1 \
-	wine-stable=10.0.0.0~bookworm-1 \
-	wine-stable-amd64=10.0.0.0~bookworm-1 \
-	wine-stable-i386=10.0.0.0~bookworm-1 \
+    winehq-staging \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /etc/apt/keyrings/winehq-archive.key
 
